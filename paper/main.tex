@@ -10,21 +10,21 @@
 \begin{abstract}
 Machine-learning detectors for cross-site scripting (XSS) routinely report accuracies above 99\%.
 These figures are computed against a label meaning ``a dataset called this string an attack''.
-Operators care about something else: whether a payload \emph{executes} in a browser.
-We measure the gap between the two. We build a local, three-process testbed (browser, inline
-proxy hosting the detector, target application) and label each payload by whether an inert
-marker fires in a real browser, at its actual sink, across \verify{N} sinks spanning two local
-applications and four production template engines.
-We find that
-(i) detectors near-perfect on the conventional label are near chance (\verify{0.38--0.51} AUC) at
-ranking payloads by executability, across ten architectures including pretrained code models,
-while a model trained on execution learns it (\verify{0.77});
-(ii) the output context predicts execution better than the payload does, so a request-side
-detector is structurally limited;
-(iii) no single inspection point covers reflected, stored and DOM-based XSS;
-(iv) the OWASP Core Rule Set at paranoia levels 1--4 \verify{barely separates} executing from inert payloads;
-(v) \verify{a large fraction} of widely used public payload lists no longer execute in current browsers, for reasons we categorise; and
-(vi) the common verification shortcut of synthetic event dispatch over-reports exploitability by \verify{27\%}.
+Operators care about something else: whether a payload \emph{executes}.
+We build a local testbed (browser, inline proxy hosting the detector, target applications,
+four production template engines) and label payloads by whether an inert marker fires in a
+real browser at each sink.
+Across ten detector architectures, scores that separate attack from benign almost perfectly
+are \emph{anti}-correlated with execution (\verify{0.34--0.51} AUC, grouped by payload family).
+A length-only baseline explains much of this: long, exotic cheat-sheet strings look most
+attack-like and run least.
+Public XSS corpora are largely enumerations of tag--event pairs: only \verify{2--3\%} of payloads
+execute on render, and the rest need a user action, a precondition or a legacy browser,
+for reasons we categorise.
+Among sinks where execution is possible, the output context adds \verify{+0.08} AUC over the
+payload, a gap no request-side detector can close.
+Finally, synthetic event dispatch, the usual shortcut for verifying interaction-gated
+payloads, reaches elements no user can, and over-reports exploitability.
 We release the testbed, oracle and labels.
 \end{abstract}
 

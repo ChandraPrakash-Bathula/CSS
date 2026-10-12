@@ -8,11 +8,11 @@ don't submit a rushed version. A solid version for USENIX Security / IEEE S&P / 
 DIMVA beats a rejected WWW paper whose reviews then circulate.
 
 ## Days 1–2 (by 14 Oct): do the oracle checks yourself, by hand, not via agents
-- [ ] Open the browser harness code and **read it**. Where is the marker read? After which event? How long does it wait?
-- [ ] B2: 30 canonical render-time payloads → raw-body sink → all must fire with no interaction.
-- [ ] B1: build an instrumented oracle (dialog hook + `eval`/`Function`/string-timer hooks + `javascript:` nav). Re-label all payloads with it and diff against the marker labels. Count the disagreements and inspect 20 by eye.
-- [ ] B5: confirm that the train/test split is by payload `group_id` in the crossed experiment.
-- **Decision point (14 Oct):** do Findings 5 and 7 survive the re-labelling? If yes, register the abstract.
+- [ ] AUDIT §A: find the code and CSVs for real-input (Finding 2), response-side (§6), Table 17, calibration and cross-browser. Push them to Project-Xss. Anything you can't find gets re-run or dropped.
+- [x] Oracle timing and grouped split: checked, OK (AUDIT B1, B5).
+- [ ] B4: re-run Table 3 with group bootstrap; add length baseline, per-source rows.
+- [ ] B5: report Table 4 with escaped + JS sinks excluded.
+- **Decision point (14 Oct):** if §A is recovered, register the abstract.
 
 ## Days 3–6 (by 18 Oct, abstract)
 - [ ] B6: Coraza or ModSecurity v3 + CRS v4 at PL1–4 in front of app 1 (docker `owasp/modsecurity-crs`). Block rate on executing vs inert.

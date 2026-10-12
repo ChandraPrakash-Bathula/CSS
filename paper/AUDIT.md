@@ -1,146 +1,120 @@
-# Pre-submission audit of the README claims
+# Audit of the README claims against the Project-Xss code and logs
 
-Scope: the README only. The repository was empty when this audit was written, so no code,
-logs or CSVs could be checked. Every item below is either (a) arithmetic recomputed from the
-README, or (b) a validity threat a WWW Security/Privacy/Trust reviewer is likely to raise.
-Severity: **BLOCKER** = could invalidate a headline claim; **MAJOR** = reviewer will demand it;
-**MINOR** = wording / presentation.
+Checked against `ChandraPrakash-Bathula/project-xss` @ `afcb51c` (single commit).
+Numbers marked ✔ were re-derived from the committed logs and models with
+`checks/recheck.py` (run it from the Project-Xss root).
 
-## 0. Arithmetic that checks out
+## A. Claims with NO code or logs in the repo: find them or drop them
 
-| claim | recomputed |
+None of these exist in the repo: `verify/real_input_check.py`, `verify/cross_browser.py`,
+`logs/table11*`–`table17*`, `table12b*`, `table13*`, `table15*`, `table16*`, and
+`split_sensitivity` for transformers. The README claims below therefore cannot be checked:
+
+| README claim | status |
 |---|---|
-| 0/3,859, rule-of-three bound 0.078% | 3/3859 = 0.0777% ✔ (but see B4: rows are not independent) |
-| 118/150 = 0.787, Wilson [0.714, 0.845] | ✔ exactly |
-| "overstates by 27%" | 150/118 = 1.271 ✔ |
-| 62% of public rows fire | (233+33)/(297+134) = 0.617 ✔ (denominator = adjudicable, not 500) |
-| corrected = reported × factor | factor is **0.793–0.801**, not 0.787. Formula is undocumented → state it (M1) |
+| Finding 2: synthetic dispatch overstates by 27% (118/150) | **no code, no log** |
+| §3 "corrected" rates (Table 17) | **no code, no log**; the factor in the README is 0.79–0.80, not 0.787 |
+| §6 response-side AUC 0.979, per-class table, DOM = 0.500 | **no code, no log** |
+| §4 definition table (render / plausible / any) | script `ml/interaction_tiers.py` exists, its output `table11` does not |
+| §11 calibration on novel sinks | **no code, no log** |
+| cross-browser (Firefox/WebKit) | **no code, no log** |
+| `requirements.txt` cited in "Reproducing" | missing |
 
-## 1. BLOCKERS: verify these yourself before believing anything
+They may live in a Colab or local copy that was never pushed. If you can't produce the
+script and the CSV, the claim doesn't go in the paper.
 
-**B1. Marker substitution can manufacture "inert" payloads, and with them Finding 7.**
-Public payloads are rewritten so `alert(...)` becomes `window.__xss_fired = true`. Obfuscated
-payloads (`alert`, `top['al'+'ert']`, `eval(atob(..))`, `String.fromCharCode`, entity- or
-URL-encoded `alert`) won't match the rewrite. They then run but never set the marker, and get
-labelled **inert**. Obfuscated payloads are also the ones detectors score *highest*. That alone
-would produce AUC < 0.5 on executes-vs-inert (0.38–0.47 observed), which is your Finding 7.
-*Test:* re-label everything with an instrumented oracle that hooks `alert/confirm/prompt/print`,
-the `dialog` event, `eval`/`Function`/`setTimeout(string)`, and navigations to `javascript:`.
-Then recompute Table 3. If AUC moves toward 0.5 or above, Finding 7 was partly an artefact.
+## B. What the code shows (✔ = reproduced)
 
-**B2. "Only ~2% execute without user action" may be a timing artefact.**
-`<img src=x onerror=…>`, `<svg onload=…>`, `<video><source onerror=…>` and `<script>` in a raw
-HTML body all fire at render. They are among the most common vectors in Kaggle and PayloadBox.
-`onerror` is asynchronous. If the marker is read at `DOMContentLoaded` or right after `goto()`,
-these get missed at render, then "caught" by the synthetic-dispatch phase and classed as
-*interaction-required*. *Test:* hand-pick 30 canonical render-time payloads and run them in the
-raw-body sink. Every one should fire with **zero** interaction. Read the marker after `load` plus
-a fixed settle time (e.g. 500 ms) and after `networkidle`. If they don't all fire, Findings 2, 5,
-the "88% need interaction" figure and the definition table in §4 all change.
+**B1. The execution oracle is reasonable.** It waits for `load`, then a 200 ms settle, and
+reads the marker. Payloads with no literal `alert/prompt/confirm(...)` are **excluded**, not
+labelled inert (439 of 500 attack originals convert: Kaggle 99%, PayloadBox 62%). My earlier
+worry that the rewrite manufactured "inert" labels does not hold. It does introduce a
+**selection bias**: heavily obfuscated payloads are missing from every execution result.
+Say so.
 
-**B3. The one-sidedness claim in §5 is untested and is stated backwards.**
-The 2×2 table has **0 cases** in the "synthetic: no" row, so only synthetic *positives* were
-sampled. Two problems follow:
-1. The text says "synthetic never finds an exploit real input misses". The table shows exactly
-   that 32 times. The intended claim is the converse: *real input never finds what synthetic
-   missed*.
-2. The converse was never measured. You need ~150 synthetic-negatives replayed with real input.
-   Until then you can't say "synthetic can only over-report", and the argument that "the
-   escaped-sink zero needs no correction" rests on nothing. (That zero is fine anyway, see B5.)
+**B2. "~2% fire without interaction" is real in the logs ✔, but it describes the dataset, not
+XSS.** Raw-body render-time firing is 2.7% (app 1) and 2.0% (engines). The Kaggle attack class
+is dominated by cheat-sheet enumerations of tag × event (`<nobr oncontextmenu=…>`,
+`<tr onbeforecut=…>`). Many "inert" rows need preconditions the harness doesn't supply:
+- a URL fragment (`:target` transitions);
+- a real image (`validimage.png`);
+- IE-only events (`onbeforedeactivate`, `onbeforeactivate`);
+- a specific sanitiser (mXSS-style `<x '="foo"><x foo='>…`);
+- or they arrive pre-escaped (`&lt;IMG LOWSRC…`).
 
-**B4. Non-independence: all CIs are too narrow.**
-Variants share a parent, and each payload is sent to every sink. The 3,859 escaped rows and
-the AUC CIs treat rows as i.i.d. Use a **cluster bootstrap over `group_id`** for every CI. For
-the zero, report the rule of three on the number of *distinct groups*, not rows.
+These payloads aren't dead. They're **context- or precondition-dependent**. The paper's
+wording has to be "did not execute under our harness", plus a taxonomy of why.
 
-**B5. Crossed-design leakage in §4 (payload + sink = 0.974).**
-If the test split is by (payload, sink) row, the same payload shows up in training with other
-sinks. The model can then memorise "this payload executes when raw", which inflates the
-payload+sink AUC. *Check* that the split is by payload `group_id`. Also report a
-**leave-one-sink-out** variant.
+**B3. Synthetic dispatch can reach elements real users can't** ✔ (seen in the data:
+`<script onmousemove>` and `<template onmousemove>` are labelled *executes*). That supports
+Finding 2's direction. Its size (27%) is unverifiable until A is resolved, and the
+one-sidedness claim is still untested (the 2×2 table had no synthetic-negative cases).
 
-**B6. Your CRS baseline isn't CRS.**
-28 extracted `@rx` patterns leave out libinjection (`@detectXSS`, rule 941100, the main XSS
-rule), the transformation pipeline (`t:urlDecodeUni,htmlEntityDecode,jsDecode,…`), anomaly
-scoring and paranoia levels. Calling it "a production WAF ruleset" will be rejected. *Fix:* run
-real **ModSecurity v3 or Coraza with CRS v4** in front of the app at **PL1–PL4**, and report
-block rate on executing vs inert payloads per PL. (This is maybe a day of work, and it becomes
-your strongest external result.)
+**B4. Table 3 (detector score vs execution) reproduces ✔, but its sample is 92 payloads, not
+632.**
+- The 632 "distinct strings" are 92 parent payloads × ~7 transforms. Execution is (almost)
+  a property of the parent, so the bootstrap over 632 strings gives CIs that are far too
+  narrow. Resample by `group_id` (as `ml/context_crossed.py` already does).
+- On the 92 near-original payloads, the baseline exec-AUC is **0.338**.
+- **Payload length alone gets 0.623** (shorter → executes). The anti-correlation is largely
+  "long, exotic, legacy cheat-sheet strings score as more attack-like and run less". That's a
+  publishable mechanism, but you must present it as such.
+- **Source confound**: Kaggle 67.5% execute and PayloadBox 13.3%, and PayloadBox scores high.
+  The PayloadBox-only AUC is 0.04, so report Kaggle-only too (0.36).
 
-## 2. MAJOR: reviewer objections to pre-empt
+**B5. Context experiment (Table 4): the headline reverses when trivial sinks are removed ✔.**
 
-**M1. The correction factor.** State the formula. A real-input confirmation rate measured on
-*interaction-required* payloads should only scale the interaction-required portion of each
-rate, not render-time firings. Propagate the CI of the factor; don't take it as fixed.
+| sinks | payload only | sink only | payload + sink |
+|---|---|---|---|
+| all 5 (README) | 0.814 | **0.850** | 0.971 |
+| drop escaped (0 by construction) and JS-string (0.003) | **0.873** | 0.696 | 0.950 |
 
-**M2. "Escaping eliminates execution" is true by construction.** HTML-entity escaping in a text
-node *should* give zero, so a reviewer will call it a tautology. Use it as a **positive control
-that validates the oracle** (no false positives), not as a headline finding. The interesting
-cells are where escaping is **context-mismatched**: the JS-string sink at 0.003 is non-zero,
-`href="javascript:…"` survives HTML escaping, and unquoted attributes. Add those sinks; they're
-the actual measurement.
+"Knowing where beats knowing what" exists only because two of the five sinks never fire.
+Defensible claim: **context adds about +0.08 AUC over the payload among sinks where execution
+is possible.** The grouped split and group bootstrap are correct (no leakage ✔).
 
-**M3. Conceptual attack on the whole paper: "a WAF is *supposed* to block dead attacks."**
-Blocking an inert attack attempt isn't a false positive operationally, because no benign user
-sends `<svg onload>`. The paper needs one clear paragraph on *why execution is the label that
-matters*:
-(a) alert triage and prioritisation (SOC cost);
-(b) robustness/evasion papers report "evasion" without checking that the evading payload still
-executes, so their numbers are uninterpretable;
-(c) benchmarks padded with dead payloads inflate reported accuracy;
-(d) context-dependent blocking.
-Point (b) is the sharpest. Miczek et al. (arXiv 2504.21045) generate obfuscated XSS with an LLM.
-**Do those LLM-obfuscated payloads still execute?** Measuring that is a strong, novel, cheap
-experiment.
+**B6. Escaped-sink zero ✔, but the bound in the README is wrong.**
+The logs have **3,430** escaped rows (not 3,859), drawn from **1,130 distinct payloads in 371
+groups**. The rule of three on independent units gives **≤0.81%**, not 0.078%. Present this as
+the oracle's negative control (no false positives), not as a finding. Escaping in the right
+context prevents XSS by definition.
 
-**M4. "Detector doesn't rank by execution" is unsurprising if never trained to.** Answer it with
-your existing positive control: the RF trained on execution reaches 0.773. The signal is
-learnable, and the community's label just doesn't ask for it. Lead with that framing.
+**B7. Row-level labels are dominated by two constant strings.** 878 of the 1,022 confirmed rows
+in `browser_results.csv` come from `js_string_breakout` and `entity_in_attr_value`, which emit
+the **same string** for every parent. `execution_auc.py` dedups correctly. Any table computed
+per row (Table 1 recall on "seen transformations", per-endpoint rates) must be checked for the
+same problem.
 
-**M5. Sink-only AUC 0.858 depends on the sink mix.** Escaped sinks give zero by construction, so
-including many of them inflates sink-only AUC. Report it **with escaped sinks excluded**.
+**B8. The "CRS" baseline isn't CRS** (confirmed in `ml/published_baselines.py`). It uses
+extracted `@rx` patterns, applied with Python `re` to lowercased text, and drops patterns that
+fail to compile. It has no libinjection (`@detectXSS`), no `t:` transformations, no anomaly
+scoring and no paranoia levels. Either run real ModSecurity v3 or Coraza with CRS v4 at PL1–4,
+or rename it "regex patterns extracted from CRS".
 
-**M6. DOM response AUC "exactly 0.500" is by construction.** The response doesn't vary, so the
-feature is constant. Present it as an illustration, not a measurement. The stored row shows
-request 0.917 ≈ response 0.915, which contradicts "stored: response only" in Finding 3. Restate:
-the *write* request carries the payload, but the request-side detector at write time has no sink
-context and can't link it to the victim's later response.
+**B9. Benchmark audit ✔.** Kaggle 233/297, PayloadBox 33/134. It uses dialog observation on
+verbatim rows, which is good. But "fired" includes synthetic interaction (B3). Render-only is
+**9/297 Kaggle and 23/134 PayloadBox**. Report both.
 
-**M7. CSIC 2010 isn't "real traffic".** It's generated, synthetic traffic from 2010. Rename it
-and acknowledge that.
+**B10. Smaller items.**
+- CSIC 2010 is generated traffic, so don't call it "real traffic".
+- Kaggle licence unstated: ship IDs plus a fetch script.
+- `published_baselines.py` calls the Miczek paper "the brief's own reference [1]". That's
+  agent/brief leftover language; scrub it everywhere.
 
-**M8. Thin external validity.** Two own-written apps, a harness around template engines, and 2
-Juice Shop sinks. Add **Google Firing Range** (purpose-built, dozens of reflected/DOM contexts),
-plus DVWA/bWAPP/WebGoat, or a handful of reproduced real XSS CVEs in Docker.
+## C. What survives as a paper
 
-**M9. "Inert in 5 contexts" ≠ inert.** Many payloads are written for a specific breakout (`">`,
-`';`, `</textarea>`, `</title>`) or for legacy IE (`expression()`, `vbscript:`). Build a
-**taxonomy of why payloads are dead** (legacy-only / needs-specific-context / malformed /
-interaction-only-no-surface). That turns Finding 6 from a number into an explanation.
+1. **Label validity, with a mechanism.** On 92 grouped payloads, detector scores are
+   anti-correlated with execution, and that is explained by payload length/exoticness and
+   by benchmark composition. A model trained on execution does learn it. This is the core.
+2. **Benchmark composition.** Public XSS sets are cheat-sheet enumerations. Only ~2–3%
+   fire at render, and most "attacks" need an interaction, a precondition or a legacy browser.
+   Include a taxonomy of non-executing payloads.
+3. **Oracle methodology.** Synthetic dispatch reaches unreachable elements. Quantify that
+   (once the real-input experiment is recovered or re-run) in both directions.
+4. **Context.** +0.08 AUC among executable sinks. The template engines reproduce it (raw
+   0.425, escaped 0).
+5. Stored/DOM visibility and the real-CRS result **only if** A and B8 are done.
 
-**M10. Cross-browser.** You ran Firefox and WebKit (n=200), but the README reports no numbers
-from them. Report agreement (Cohen's κ) with Chromium.
-
-**M11. Citations.** Agents fabricate references. Check every one by DOI. (Miczek et al. is real:
-arXiv 2504.21045.)
-
-## 3. MINOR / cut
-
-- Finding 8 (latency) is well known for n-gram LR and off-thesis. Move it to the appendix.
-- Augmentation and calibration negative results: keep them, briefly.
-- "Four claims retracted": good practice, and one sentence in the paper is enough.
-- Kaggle licence unstated: release IDs + a fetch script, not the data.
-- Report per-architecture execution AUC as a range across splits (it's split-sensitive by up to 0.23).
-
-## 4. What survives as the paper's core, provided B1–B6 hold
-
-1. **Label validity:** attack-likeness ≠ executability. Detectors are near chance at ranking
-   by execution, and a model trained on execution can learn it.
-2. **Context dominates:** where a value lands matters more than what it is. This is shown with
-   real template engines, and context-mismatched escaping is the interesting regime.
-3. **Inspection-point coverage:** request vs response vs DOM for reflected/stored/DOM XSS.
-4. **Benchmark decay:** a large share of public payload lists is dead in modern browsers,
-   explained by a taxonomy.
-5. **Verification methodology:** synthetic dispatch over-reports. Quantify it in both
-   directions.
-6. **Real WAF:** CRS at PL1–4 barely separates executing from inert payloads.
+With B4 and B5 corrected, findings 1, 7 and the "sink beats payload" line from the README
+become: negative control; anti-correlation with a mechanism; and a modest context gain.
+That's still a coherent measurement paper, just a more modest one.
