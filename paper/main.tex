@@ -1,0 +1,90 @@
+% WWW 2027 research track, Security, Privacy and Trust. Check CfP for page limit & template options.
+\documentclass[sigconf,anonymous,review]{acmart}
+\usepackage{booktabs}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+\newcommand{\verify}[1]{\textcolor{orange}{#1}} % numbers not yet re-verified (see AUDIT.md)
+
+\begin{document}
+\title{What Does an XSS Detector Actually Detect?\\An Execution-Grounded Measurement of Learned Cross-Site Scripting Detection}
+
+\begin{abstract}
+Machine-learning detectors for cross-site scripting (XSS) routinely report accuracies above 99\%.
+These figures are computed against a label meaning ``a dataset called this string an attack''.
+Operators care about something else: whether a payload \emph{executes} in a browser.
+We measure the gap between the two. We build a local, three-process testbed (browser, inline
+proxy hosting the detector, target application) and label each payload by whether an inert
+marker fires in a real browser, at its actual sink, across \verify{N} sinks spanning two local
+applications and four production template engines.
+We find that
+(i) detectors near-perfect on the conventional label are near chance (\verify{0.38--0.51} AUC) at
+ranking payloads by executability, across ten architectures including pretrained code models,
+while a model trained on execution learns it (\verify{0.77});
+(ii) the output context predicts execution better than the payload does, so a request-side
+detector is structurally limited;
+(iii) no single inspection point covers reflected, stored and DOM-based XSS;
+(iv) the OWASP Core Rule Set at paranoia levels 1--4 \verify{barely separates} executing from inert payloads;
+(v) \verify{a large fraction} of widely used public payload lists no longer execute in current browsers, for reasons we categorise; and
+(vi) the common verification shortcut of synthetic event dispatch over-reports exploitability by \verify{27\%}.
+We release the testbed, oracle and labels.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+% Para 1: the 99% numbers, and what label they are computed against.
+% Para 2: why execution is the label that matters (AUDIT M3):
+%   alert triage; evasion/robustness papers that never check the evading payload still runs;
+%   benchmark inflation from dead payloads.
+% Para 3: our approach: execution-grounded labels, two labels never mixed.
+% Para 4: no new model; a measurement. Pitfalls framing, cf. \cite{arp2022dos}.
+\paragraph{Contributions}
+\begin{itemize}
+  \item An execution oracle and testbed that keep \emph{attack-likeness} and \emph{executability} separate, with the oracle's own error quantified in both directions (\S\ref{sec:oracle}).
+  \item RQ1: label validity across ten detector architectures and two published detectors (\S\ref{sec:rq1}).
+  \item RQ2: the role of output context, incl.\ context-mismatched escaping in real template engines (\S\ref{sec:rq2}).
+  \item RQ3: inspection-point coverage for reflected / stored / DOM XSS (\S\ref{sec:rq3}).
+  \item RQ4: decay of public payload benchmarks, with a taxonomy of why payloads are dead (\S\ref{sec:rq4}).
+\end{itemize}
+
+\section{Background and Related Work}
+% ML XSS detection (DeepXSS \cite{fang2018deepxss}, Miczek et al. \cite{miczek2025llm}); WAFs and evasion (\cite{demetrio2020wafamole});
+% execution-verified XSS discovery (\cite{lekies2013flows,melicher2018domsday,steffens2019locals,duchene2014kameleonfuzz});
+% ML-in-security pitfalls (\cite{arp2022dos}). Position: they verify execution to *find* bugs; we use it to *audit detectors*.
+
+\section{Methodology}
+\subsection{Two labels}
+\subsection{Testbed}            % three processes; why the boundary is the experiment
+\subsection{Payload corpus}     % sources, dedup by skeleton, group-level split, licences
+\subsection{Execution oracle}\label{sec:oracle}
+% marker + instrumented hooks (AUDIT B1); render-settle protocol (B2);
+% synthetic vs real input, BOTH directions (B3); cross-browser kappa (M10).
+\subsection{Statistics}         % cluster bootstrap over group_id (B4)
+
+\section{RQ1: Do detectors track execution?}\label{sec:rq1}
+% Table 3 (our 10 archs) + CRS PL1–4 real engine (B6) + Miczek-style RF; positive control trained on execution (M4).
+% Split sensitivity: report ranges.
+
+\section{RQ2: Where the value lands}\label{sec:rq2}
+% Per-sink rates; escaped text = positive control (M2); context-mismatched escaping = the result.
+% Payload vs sink vs both; escaped sinks excluded (M5); leave-one-sink-out (B5).
+
+\section{RQ3: Which side of the wire}\label{sec:rq3}
+% request / response / response+XHR per class (M6 wording).
+
+\section{RQ4: Benchmark decay}\label{sec:rq4}
+% Unmodified public rows; taxonomy (M9); do LLM-obfuscated payloads still execute? (M3b)
+
+\section{Discussion}
+% Implications: for detector authors (report execution-grounded metrics), for benchmark
+% curators, for WAF operators (context-aware / response-side placement).
+% Negative results: augmentation, calibration, cross-app transfer.
+
+\section{Limitations}
+\section{Ethics}
+% All local, 127.0.0.1, inert marker, no third-party systems tested.
+
+\section{Conclusion}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{refs}
+\end{document}
