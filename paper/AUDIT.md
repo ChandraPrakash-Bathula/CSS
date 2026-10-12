@@ -118,3 +118,27 @@ verbatim rows, which is good. But "fired" includes synthetic interaction (B3). R
 With B4 and B5 corrected, findings 1, 7 and the "sink beats payload" line from the README
 become: negative control; anti-correlation with a mechanism; and a modest context gain.
 That's still a coherent measurement paper, just a more modest one.
+
+---
+
+# Update: Project-Xss @ `7aa0f94` (new logs and scripts pushed)
+
+## Now backed by committed evidence ✔
+| claim | check |
+|---|---|
+| Real-input 2×2 (118/32/0/0) | `table13_real_input.csv` + `verify/real_input_check.py` reproduce it |
+| Cross-browser table, 96.0% agreement | `table14_cross_browser.csv` reproduces it exactly. The Chromium re-run matches the original Chromium labels on **1000/1000** pairs, which is strong evidence the oracle is deterministic |
+| Response-side AUCs (§6), corrected rates (§3) | CSVs present (`table15`–`17`) |
+
+## Still open
+1. **No generator scripts for `table11`, `table12`, `table12b`, `table15`, `table16`, `table17`.** Only the response *collectors* (`verify/collect_responses*.py`) were pushed. Push the analysis scripts that turn those logs into the tables.
+2. **The real-input check covers about a third of what it corrects.** It tests only the 14 events Playwright can drive (click / hover / focus families). Those account for **33.7%** of the 1,152 interaction firings in `cross_context.csv`. The other 66% (`animationiteration` 84, `drop` 54, `contextmenu` 51, `drag*`, `copy`, `focusout`, `pointerleave/out`, `beforepaste` …) were never validated, yet Table 17 applies the 0.787 factor to them too.
+   Also, per-event confirmation varies from 0.42 (`mousemove`) to 1.0, so a single factor is wrong. Apply per-event factors, and report the untested share as untested.
+3. **`animationiteration` is a likely oracle artefact.** It is classed as interaction-gated, but no user action triggers it. With `@keyframes x{}` and the default iteration count of 1, the browser never fires it, so its 84 firings are synthetic-only. The same check is needed for every non-user event in the "interaction" class.
+4. **One-sidedness is still unmeasured.** `real_input.out` confirms the sample was *"150 interaction-gated payloads that fired synthetically"*. Rewrite the README sentence to say so, or sample synthetic negatives.
+5. **Cross-browser doesn't speak to PayloadBox.** Its 200 payloads come from `cross_context.csv` (marker-converted, transformed variants), not the unmodified public rows. The README's motivation for §11 ("public payload rows are inert … merely Chromium-dead") isn't tested by it. Also: 200 payloads = 152 groups; "executes" includes synthetic dispatch; render-only rates are 0.5–4% in every engine.
+6. **The "0 of 4,459" total still counts repeats.** The 600 cross-browser escaped rows are the same 200 payloads ×3 engines, and they're already inside the 3,430. Report the bound on distinct groups (≈0.8%).
+7. **Housekeeping:**
+   - 14 `__pycache__/*.pyc` files are committed; add a `.gitignore`.
+   - Result CSVs sit at the repo root (`table5_*`, `scores_*`) as well as in `logs/`, and `new-results/` holds `(1).csv` copies. Keep one canonical copy of each.
+   - `real_input.out` contains a local path (`/Users/<name>/Downloads/...`). Scrub it before the artifact goes to anonymous review.
