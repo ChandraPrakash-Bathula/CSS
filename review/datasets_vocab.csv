@@ -1,0 +1,5 @@
+dataset_id,name,url_or_doi,licence,notes
+kaggle_syedsaqlainhussain,Cross site scripting XSS dataset for deep learning (Kaggle),https://www.kaggle.com/datasets/syedsaqlainhussain/cross-site-scripting-xss-dataset-for-deep-learning,not stated,used in Project-Xss
+payloadbox,PayloadBox XSS payload list (via SecLists),https://github.com/payloadbox/xss-payload-list,MIT,used in Project-Xss
+mendeley_xss_v2,Large-scale annotated XSS dataset (Mendeley Data),VERIFY DOI,CC BY 4.0,used in Project-Xss
+csic2010,HTTP DATASET CSIC 2010,VERIFY URL,VERIFY,generated traffic

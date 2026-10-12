@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+out/
+cc_*/
+review/raw/
+review/disagreements_*.csv
+*.part

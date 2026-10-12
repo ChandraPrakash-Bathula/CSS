@@ -1,3 +1,5 @@
+> **Superseded (Oct 2026):** the project now targets the Web-scale design in `/README.md`. This file describes the earlier lab-only study, whose RQs become contribution C5.
+
 # Study design: "What does an XSS detector actually detect?"
 
 Built on the course brief ("Can AI Detect XSS in Web Traffic?") and the Project-Xss repo.
